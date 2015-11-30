@@ -74,13 +74,13 @@ final case class TD(
       // Compute new weights vector in batch or online as required.
       val newW: RandomWalkVector = trainingSet.foldLeft(w) { case (wPrev: RandomWalkVector, walk: RandomWalk) =>
         // Get deltas for each walk in the training set.
-        val dw: Seq[RandomWalkVector] = this.computeDeltas(
+        val dw: RandomWalkVector = this.computeDeltas(
           walk,
           // If online, propagate using new weights, else if batch, propagate initial weights vector.
           if (online) wPrev else w
         )
         // Update weights with the sum of the deltas (delta rule).
-        wPrev + dw.reduce(_ + _)
+        wPrev + dw
       }
 
       // Check if L_\infty norm exceeds tolerance.
@@ -95,21 +95,21 @@ final case class TD(
   }
 
   /**
-   * Recursively, computes the (temporal difference) deltas of the weights vector on a given walk.
+   * Recursively, computes the (temporal difference) cumulative delta of the weights vector on a given walk.
    * See (pp. 15-16, Sutton 1988, equation (4)).
    *
    * @param walk random walk to compute delta for.
    * @param w current weights vector.
-   * @param dw precomputed deltas (used as the accumulator of deltas in recursive).
+   * @param dw precomputed delta (used as the accumulator of deltas in recursion).
    * @param e the sum of the weighted gradients (see p. 15, Sutton, 1988)
-   * @return sequence of detlas.
+   * @return delta for the weights vector.
    */
   @tailrec def computeDeltas(
     walk: RandomWalk,
     w: RandomWalkVector,
-    dw: Seq[RandomWalkVector] = Seq(),
+    dw: RandomWalkVector = RandomWalkVector.zeroes(),
     e: RandomWalkVector = RandomWalkVector.zeroes()
-  ): Seq[RandomWalkVector] = {
+  ): RandomWalkVector = {
     if (walk.length <= 1) {
       // If we have gotten to the end of the walk, then return the accumulated deltas.
       return dw
@@ -131,7 +131,7 @@ final case class TD(
       return computeDeltas(
         walk.tail,
         w,
-        dw.+:(dwNext),
+        dw + dwNext,
         eNext
       )
     }
